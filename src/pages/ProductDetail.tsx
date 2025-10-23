@@ -5,12 +5,15 @@ import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { products } from "@/data/products";
 import { useCart } from "@/contexts/CartContext";
+import { useWishlist } from "@/contexts/WishlistContext";
 import { Star, ShoppingCart, Minus, Plus, ArrowLeft, Heart } from "lucide-react";
+import { ReviewsSection } from "@/components/review/ReviewsSection";
 import { ProductCard } from "@/components/product/ProductCard";
 
 const ProductDetail = () => {
   const { id } = useParams();
   const { addToCart } = useCart();
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
 
@@ -43,6 +46,14 @@ const ProductDetail = () => {
   const handleAddToCart = () => {
     for (let i = 0; i < quantity; i++) {
       addToCart(product);
+    }
+  };
+
+  const handleWishlistToggle = () => {
+    if (isInWishlist(product.id)) {
+      removeFromWishlist(product.id);
+    } else {
+      addToWishlist(product);
     }
   };
 
@@ -189,8 +200,13 @@ const ProductDetail = () => {
                     <ShoppingCart className="mr-2 h-5 w-5" />
                     Add to Cart
                   </Button>
-                  <Button variant="outline" size="lg">
-                    <Heart className="h-5 w-5" />
+                  <Button 
+                    variant="outline" 
+                    size="lg"
+                    onClick={handleWishlistToggle}
+                    className={isInWishlist(product.id) ? 'text-red-500 border-red-500' : ''}
+                  >
+                    <Heart className={`h-5 w-5 ${isInWishlist(product.id) ? 'fill-current' : ''}`} />
                   </Button>
                 </div>
               </div>
@@ -202,6 +218,9 @@ const ProductDetail = () => {
               </div>
             </div>
           </div>
+
+          {/* Reviews Section */}
+          <ReviewsSection productId={product.id} />
 
           {/* Related Products */}
           {relatedProducts.length > 0 && (

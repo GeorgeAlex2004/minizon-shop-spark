@@ -1,0 +1,104 @@
+pipeline {
+    agent any
+    
+    environment {
+        DOCKER_REGISTRY = 'your-registry.com'
+        IMAGE_NAME = 'minizon-frontend'
+        KUBECONFIG = credentials('kubeconfig')
+        DOCKER_CREDENTIALS = credentials('docker-registry-credentials')
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+        
+        stage('Install Dependencies') {
+            steps {
+                sh 'npm ci'
+            }
+        }
+        
+        stage('Lint') {
+            steps {
+                sh 'npm run lint'
+            }
+        }
+        
+        stage('Build') {
+            steps {
+                sh 'npm run build'
+            }
+        }
+        
+        stage('Test') {
+            steps {
+                sh 'npm test -- --coverage --watchAll=false'
+            }
+            post {
+                always {
+                    publishTestResults testResultsPattern: 'test-results.xml'
+                    publishCoverage adapters: [coberturaAdapter('coverage/cobertura-coverage.xml')]
+                }
+            }
+        }
+        
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    def image = docker.build("${DOCKER_REGISTRY}/${IMAGE_NAME}:${BUILD_NUMBER}")
+                    docker.withRegistry("https://${DOCKER_REGISTRY}", "${DOCKER_CREDENTIALS}") {
+                        image.push()
+                        image.push("latest")
+                    }
+                }
+            }
+        }
+        
+        stage('Security Scan') {
+            steps {
+                sh 'docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image ${DOCKER_REGISTRY}/${IMAGE_NAME}:${BUILD_NUMBER}'
+            }
+        }
+        
+        stage('Deploy to Staging') {
+            when {
+                branch 'develop'
+            }
+            steps {
+                sh '''
+                    kubectl config use-context staging
+                    kubectl set image deployment/minizon-frontend minizon-frontend=${DOCKER_REGISTRY}/${IMAGE_NAME}:${BUILD_NUMBER} -n minizon-staging
+                    kubectl rollout status deployment/minizon-frontend -n minizon-staging
+                '''
+            }
+        }
+        
+        stage('Deploy to Production') {
+            when {
+                branch 'main'
+            }
+            steps {
+                sh '''
+                    kubectl config use-context production
+                    kubectl set image deployment/minizon-frontend minizon-frontend=${DOCKER_REGISTRY}/${IMAGE_NAME}:${BUILD_NUMBER} -n minizon
+                    kubectl rollout status deployment/minizon-frontend -n minizon
+                '''
+            }
+        }
+    }
+    
+    post {
+        always {
+            cleanWs()
+        }
+        success {
+            slackSend channel: '#deployments', message: "✅ Deployment successful: ${env.JOB_NAME} - ${env.BUILD_NUMBER}"
+        }
+        failure {
+            slackSend channel: '#deployments', message: "❌ Deployment failed: ${env.JOB_NAME} - ${env.BUILD_NUMBER}"
+        }
+    }
+}

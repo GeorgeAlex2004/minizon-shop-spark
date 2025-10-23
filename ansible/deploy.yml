@@ -1,0 +1,139 @@
+---
+# Ansible playbook for deploying Minizon E-commerce Frontend
+- name: Deploy Minizon Frontend to Kubernetes
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  
+  vars:
+    app_name: minizon-frontend
+    namespace: minizon
+    image_tag: "{{ lookup('env', 'BUILD_NUMBER') | default('latest') }}"
+    docker_registry: "{{ lookup('env', 'DOCKER_REGISTRY') | default('your-registry.com') }}"
+    replicas: 3
+    
+  tasks:
+    - name: Check if kubectl is available
+      command: kubectl version --client
+      register: kubectl_check
+      failed_when: kubectl_check.rc != 0
+      
+    - name: Create namespace if it doesn't exist
+      kubernetes.core.k8s:
+        name: "{{ namespace }}"
+        api_version: v1
+        kind: Namespace
+        state: present
+        
+    - name: Deploy Minizon Frontend
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: "{{ app_name }}"
+            namespace: "{{ namespace }}"
+            labels:
+              app: "{{ app_name }}"
+              version: "{{ image_tag }}"
+          spec:
+            replicas: "{{ replicas }}"
+            selector:
+              matchLabels:
+                app: "{{ app_name }}"
+            template:
+              metadata:
+                labels:
+                  app: "{{ app_name }}"
+                  version: "{{ image_tag }}"
+              spec:
+                containers:
+                - name: "{{ app_name }}"
+                  image: "{{ docker_registry }}/{{ app_name }}:{{ image_tag }}"
+                  ports:
+                  - containerPort: 80
+                  env:
+                  - name: NODE_ENV
+                    value: "production"
+                  resources:
+                    requests:
+                      memory: "256Mi"
+                      cpu: "250m"
+                    limits:
+                      memory: "512Mi"
+                      cpu: "500m"
+                  livenessProbe:
+                    httpGet:
+                      path: /health
+                      port: 80
+                    initialDelaySeconds: 30
+                    periodSeconds: 10
+                  readinessProbe:
+                    httpGet:
+                      path: /health
+                      port: 80
+                    initialDelaySeconds: 5
+                    periodSeconds: 5
+                    
+    - name: Deploy Service
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: "{{ app_name }}-service"
+            namespace: "{{ namespace }}"
+            labels:
+              app: "{{ app_name }}"
+          spec:
+            type: ClusterIP
+            ports:
+            - port: 80
+              targetPort: 80
+              protocol: TCP
+            selector:
+              app: "{{ app_name }}"
+              
+    - name: Deploy Ingress
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: networking.k8s.io/v1
+          kind: Ingress
+          metadata:
+            name: "{{ app_name }}-ingress"
+            namespace: "{{ namespace }}"
+            annotations:
+              nginx.ingress.kubernetes.io/rewrite-target: /
+              nginx.ingress.kubernetes.io/ssl-redirect: "true"
+              cert-manager.io/cluster-issuer: "letsencrypt-prod"
+          spec:
+            tls:
+            - hosts:
+              - "{{ lookup('env', 'DOMAIN_NAME') | default('minizon.example.com') }}"
+              secretName: "{{ app_name }}-tls"
+            rules:
+            - host: "{{ lookup('env', 'DOMAIN_NAME') | default('minizon.example.com') }}"
+              http:
+                paths:
+                - path: /
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: "{{ app_name }}-service"
+                      port:
+                        number: 80
+                        
+    - name: Wait for deployment to be ready
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: Deployment
+        name: "{{ app_name }}"
+        namespace: "{{ namespace }}"
+        wait: true
+        wait_condition:
+          type: Available
+          status: "True"
+        wait_timeout: 300

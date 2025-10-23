@@ -1,0 +1,52 @@
+---
+# Ansible playbook for rollback
+- name: Rollback Minizon Frontend
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  
+  vars:
+    app_name: minizon-frontend
+    namespace: minizon
+    rollback_revision: "{{ lookup('env', 'ROLLBACK_REVISION') | default('1') }}"
+    
+  tasks:
+    - name: Rollback deployment
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: "{{ app_name }}"
+            namespace: "{{ namespace }}"
+          spec:
+            template:
+              metadata:
+                annotations:
+                  deployment.kubernetes.io/revision: "{{ rollback_revision }}"
+                  
+    - name: Wait for rollback to complete
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: Deployment
+        name: "{{ app_name }}"
+        namespace: "{{ namespace }}"
+        wait: true
+        wait_condition:
+          type: Progressing
+          status: "True"
+          reason: NewReplicaSetAvailable
+        wait_timeout: 600
+        
+    - name: Verify rollback status
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: Deployment
+        name: "{{ app_name }}"
+        namespace: "{{ namespace }}"
+      register: deployment_info
+      
+    - name: Display rollback status
+      debug:
+        msg: "Rollback completed for {{ app_name }}"

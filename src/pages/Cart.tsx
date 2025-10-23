@@ -3,10 +3,10 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/contexts/CartContext";
-import { Minus, Plus, Trash2, ArrowLeft, ShoppingBag } from "lucide-react";
+import { Minus, Plus, Trash2, ArrowLeft, ShoppingBag, Clock } from "lucide-react";
 
 const Cart = () => {
-  const { items, updateQuantity, removeFromCart, total, clearCart } = useCart();
+  const { items, updateQuantity, removeFromCart, total, clearCart, saveForLater, savedItems, moveToCart, removeFromSaved } = useCart();
 
   if (items.length === 0) {
     return (
@@ -108,7 +108,16 @@ const Cart = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 ml-4 text-destructive hover:text-destructive"
+                        className="h-8 w-8 ml-2 text-blue-600 hover:text-blue-700"
+                        onClick={() => saveForLater(item.product.id)}
+                        title="Save for later"
+                      >
+                        <Clock className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 ml-2 text-destructive hover:text-destructive"
                         onClick={() => removeFromCart(item.product.id)}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -124,6 +133,64 @@ const Cart = () => {
                 </div>
               ))}
             </div>
+
+            {/* Saved for Later */}
+            {savedItems.length > 0 && (
+              <div className="lg:col-span-2">
+                <h2 className="text-xl font-bold mb-4">Saved for Later</h2>
+                <div className="space-y-4">
+                  {savedItems.map((product) => (
+                    <div
+                      key={product.id}
+                      className="flex gap-4 p-4 border rounded-lg bg-muted/50"
+                    >
+                      <Link
+                        to={`/product/${product.id}`}
+                        className="flex-shrink-0"
+                      >
+                        <img
+                          src={product.images[0]}
+                          alt={product.name}
+                          className="h-24 w-24 object-cover rounded-md"
+                        />
+                      </Link>
+
+                      <div className="flex-1 space-y-2">
+                        <Link to={`/product/${product.id}`}>
+                          <h3 className="font-semibold hover:text-primary transition-colors">
+                            {product.name}
+                          </h3>
+                        </Link>
+                        <p className="text-sm text-muted-foreground">
+                          {product.brand}
+                        </p>
+                        <p className="font-bold text-primary">
+                          ${product.price.toFixed(2)}
+                        </p>
+                      </div>
+
+                      <div className="flex flex-col space-y-2">
+                        <Button
+                          variant="accent"
+                          size="sm"
+                          onClick={() => moveToCart(product.id)}
+                        >
+                          Move to Cart
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => removeFromSaved(product.id)}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Order Summary */}
             <div className="lg:col-span-1">
@@ -163,8 +230,10 @@ const Cart = () => {
                   </div>
                 </div>
 
-                <Button variant="accent" size="lg" className="w-full">
-                  Proceed to Checkout
+                <Button variant="accent" size="lg" className="w-full" asChild>
+                  <Link to="/checkout">
+                    Proceed to Checkout
+                  </Link>
                 </Button>
 
                 <Button variant="outline" size="lg" className="w-full" asChild>

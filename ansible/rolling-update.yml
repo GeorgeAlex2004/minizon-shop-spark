@@ -1,0 +1,54 @@
+---
+# Ansible playbook for rolling updates
+- name: Rolling Update Minizon Frontend
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  
+  vars:
+    app_name: minizon-frontend
+    namespace: minizon
+    image_tag: "{{ lookup('env', 'BUILD_NUMBER') | default('latest') }}"
+    docker_registry: "{{ lookup('env', 'DOCKER_REGISTRY') | default('your-registry.com') }}"
+    
+  tasks:
+    - name: Update deployment image
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: "{{ app_name }}"
+            namespace: "{{ namespace }}"
+          spec:
+            template:
+              spec:
+                containers:
+                - name: "{{ app_name }}"
+                  image: "{{ docker_registry }}/{{ app_name }}:{{ image_tag }}"
+                  
+    - name: Wait for rollout to complete
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: Deployment
+        name: "{{ app_name }}"
+        namespace: "{{ namespace }}"
+        wait: true
+        wait_condition:
+          type: Progressing
+          status: "True"
+          reason: NewReplicaSetAvailable
+        wait_timeout: 600
+        
+    - name: Verify deployment status
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: Deployment
+        name: "{{ app_name }}"
+        namespace: "{{ namespace }}"
+      register: deployment_info
+      
+    - name: Display deployment status
+      debug:
+        msg: "Deployment {{ app_name }} is {{ deployment_info.resources[0].status.conditions[0].status }}"

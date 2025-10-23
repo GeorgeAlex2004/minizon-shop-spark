@@ -18,9 +18,16 @@ export interface CartItem {
   quantity: number;
 }
 
-export interface Category {
+export interface Review {
   id: string;
-  name: string;
-  icon: string;
-  image: string;
+  productId: string;
+  userId: string;
+  userName: string;
+  userAvatar?: string;
+  rating: number;
+  title: string;
+  comment: string;
+  date: string;
+  verified: boolean;
+  helpful: number;
 }

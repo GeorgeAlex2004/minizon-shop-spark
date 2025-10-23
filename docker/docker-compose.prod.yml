@@ -1,0 +1,45 @@
+# Docker Compose for production deployment
+version: '3.8'
+
+services:
+  minizon-frontend:
+    image: minizon-frontend:latest
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    volumes:
+      - ./ssl:/etc/nginx/ssl:ro  # SSL certificates
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+
+  # Load balancer (optional)
+  nginx-lb:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./docker/nginx-lb.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - minizon-frontend
+    restart: unless-stopped

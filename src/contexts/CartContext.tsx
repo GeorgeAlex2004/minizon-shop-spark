@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { CartItem, Product } from "@/types";
 import { toast } from "@/hooks/use-toast";
 
@@ -10,12 +10,49 @@ interface CartContextType {
   clearCart: () => void;
   total: number;
   itemCount: number;
+  saveForLater: (productId: string) => void;
+  savedItems: Product[];
+  moveToCart: (productId: string) => void;
+  removeFromSaved: (productId: string) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [items, setItems] = useState<CartItem[]>([]);
+  const [savedItems, setSavedItems] = useState<Product[]>([]);
+
+  // Load cart from localStorage on mount
+  useEffect(() => {
+    const savedCart = localStorage.getItem("minizon-cart");
+    const savedForLater = localStorage.getItem("minizon-saved");
+    
+    if (savedCart) {
+      try {
+        setItems(JSON.parse(savedCart));
+      } catch (error) {
+        localStorage.removeItem("minizon-cart");
+      }
+    }
+    
+    if (savedForLater) {
+      try {
+        setSavedItems(JSON.parse(savedForLater));
+      } catch (error) {
+        localStorage.removeItem("minizon-saved");
+      }
+    }
+  }, []);
+
+  // Save cart to localStorage whenever items change
+  useEffect(() => {
+    localStorage.setItem("minizon-cart", JSON.stringify(items));
+  }, [items]);
+
+  // Save saved items to localStorage whenever savedItems change
+  useEffect(() => {
+    localStorage.setItem("minizon-saved", JSON.stringify(savedItems));
+  }, [savedItems]);
 
   const addToCart = (product: Product) => {
     setItems((prevItems) => {
@@ -75,6 +112,30 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
+  const saveForLater = (productId: string) => {
+    const item = items.find((item) => item.product.id === productId);
+    if (item) {
+      setSavedItems((prev) => [...prev, item.product]);
+      removeFromCart(productId);
+      toast({
+        title: "Saved for later",
+        description: `${item.product.name} has been saved for later`,
+      });
+    }
+  };
+
+  const moveToCart = (productId: string) => {
+    const product = savedItems.find((item) => item.id === productId);
+    if (product) {
+      addToCart(product);
+      removeFromSaved(productId);
+    }
+  };
+
+  const removeFromSaved = (productId: string) => {
+    setSavedItems((prev) => prev.filter((item) => item.id !== productId));
+  };
+
   const total = items.reduce(
     (sum, item) => sum + item.product.price * item.quantity,
     0
@@ -92,6 +153,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         clearCart,
         total,
         itemCount,
+        saveForLater,
+        savedItems,
+        moveToCart,
+        removeFromSaved,
       }}
     >
       {children}

@@ -1,9 +1,10 @@
 import { Link } from "react-router-dom";
-import { Star, ShoppingCart } from "lucide-react";
+import { Star, ShoppingCart, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Product } from "@/types";
 import { useCart } from "@/contexts/CartContext";
+import { useWishlist } from "@/contexts/WishlistContext";
 
 interface ProductCardProps {
   product: Product;
@@ -11,10 +12,20 @@ interface ProductCardProps {
 
 export const ProductCard = ({ product }: ProductCardProps) => {
   const { addToCart } = useCart();
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   
   const discount = product.originalPrice
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : 0;
+
+  const handleWishlistToggle = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (isInWishlist(product.id)) {
+      removeFromWishlist(product.id);
+    } else {
+      addToWishlist(product);
+    }
+  };
 
   return (
     <Card className="group overflow-hidden transition-all duration-300 hover:shadow-card-hover">
@@ -26,10 +37,18 @@ export const ProductCard = ({ product }: ProductCardProps) => {
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
           {discount > 0 && (
-            <div className="absolute top-2 right-2 bg-accent text-accent-foreground px-2 py-1 rounded-md text-xs font-semibold">
+            <div className="absolute top-2 left-2 bg-accent text-accent-foreground px-2 py-1 rounded-md text-xs font-semibold">
               -{discount}%
             </div>
           )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute top-2 right-2 h-8 w-8 bg-background/80 hover:bg-background"
+            onClick={handleWishlistToggle}
+          >
+            <Heart className={`h-4 w-4 ${isInWishlist(product.id) ? 'fill-red-500 text-red-500' : ''}`} />
+          </Button>
           {!product.inStock && (
             <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
               <span className="text-lg font-semibold">Out of Stock</span>

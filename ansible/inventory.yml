@@ -1,0 +1,28 @@
+---
+# Ansible inventory file for Minizon deployment
+all:
+  children:
+    kubernetes:
+      hosts:
+        localhost:
+      vars:
+        ansible_connection: local
+        ansible_python_interpreter: python3
+        
+    staging:
+      hosts:
+        localhost:
+      vars:
+        ansible_connection: local
+        ansible_python_interpreter: python3
+        environment: staging
+        namespace: minizon-staging
+        
+    production:
+      hosts:
+        localhost:
+      vars:
+        ansible_connection: local
+        ansible_python_interpreter: python3
+        environment: production
+        namespace: minizon

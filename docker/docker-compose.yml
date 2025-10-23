@@ -1,0 +1,44 @@
+# Docker Compose for local development
+version: '3.8'
+
+services:
+  minizon-frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    ports:
+      - "3000:80"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Add backend service when ready
+  # minizon-backend:
+  #   image: minizon-backend:latest
+  #   ports:
+  #     - "8080:8080"
+  #   environment:
+  #     - DATABASE_URL=postgresql://user:password@db:5432/minizon
+  #   depends_on:
+  #     - db
+
+  # Optional: Add database service
+  # db:
+  #   image: postgres:15-alpine
+  #   environment:
+  #     - POSTGRES_DB=minizon
+  #     - POSTGRES_USER=user
+  #     - POSTGRES_PASSWORD=password
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+
+# volumes:
+#   postgres_data:
