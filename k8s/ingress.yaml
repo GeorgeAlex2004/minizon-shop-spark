@@ -3,16 +3,21 @@ kind: Ingress
 metadata:
   name: minizon-frontend-ingress
   namespace: minizon
+  labels:
+    app: minizon-frontend
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
 spec:
   tls:
   - hosts:
     - minizon.example.com
-    secretName: minizon-tls
+    secretName: minizon-frontend-tls
   rules:
   - host: minizon.example.com
     http:
@@ -21,13 +26,6 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: minizon-frontend-clusterip
+            name: minizon-frontend-service
             port:
               number: 80
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: minizon
-  labels:
-    name: minizon

@@ -1,4 +1,4 @@
-# ECR Repository for Docker Images
+# ECR Repository for Minizon Frontend
 resource "aws_ecr_repository" "minizon_frontend" {
   name                 = "minizon-frontend"
   image_tag_mutability = "MUTABLE"
@@ -7,13 +7,17 @@ resource "aws_ecr_repository" "minizon_frontend" {
     scan_on_push = true
   }
 
+  encryption_configuration {
+    encryption_type = "AES256"
+  }
+
   tags = {
-    Name = "minizon-frontend-ecr"
+    Name = "minizon-frontend"
   }
 }
 
 # ECR Repository Policy
-resource "aws_ecr_repository_policy" "minizon_frontend_policy" {
+resource "aws_ecr_repository_policy" "minizon_frontend" {
   repository = aws_ecr_repository.minizon_frontend.name
 
   policy = jsonencode({
@@ -34,13 +38,25 @@ resource "aws_ecr_repository_policy" "minizon_frontend_policy" {
           "ecr:UploadLayerPart",
           "ecr:CompleteLayerUpload"
         ]
+      },
+      {
+        Sid    = "AllowEKS"
+        Effect = "Allow"
+        Principal = {
+          AWS = aws_iam_role.eks_nodes.arn
+        }
+        Action = [
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage",
+          "ecr:BatchCheckLayerAvailability"
+        ]
       }
     ]
   })
 }
 
 # ECR Lifecycle Policy
-resource "aws_ecr_lifecycle_policy" "minizon_frontend_lifecycle" {
+resource "aws_ecr_lifecycle_policy" "minizon_frontend" {
   repository = aws_ecr_repository.minizon_frontend.name
 
   policy = jsonencode({

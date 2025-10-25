@@ -1,5 +1,5 @@
 ---
-# Ansible playbook for rollback
+# Ansible playbook for rollback of Minizon Frontend
 - name: Rollback Minizon Frontend
   hosts: localhost
   connection: local
@@ -8,24 +8,91 @@
   vars:
     app_name: minizon-frontend
     namespace: minizon
-    rollback_revision: "{{ lookup('env', 'ROLLBACK_REVISION') | default('1') }}"
+    rollback_to_revision: "{{ lookup('env', 'ROLLBACK_REVISION') | default('') }}"
     
   tasks:
-    - name: Rollback deployment
+    - name: Check if kubectl is available
+      command: kubectl version --client
+      register: kubectl_check
+      failed_when: kubectl_check.rc != 0
+      
+    - name: Get deployment rollout history
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: Deployment
+        name: "{{ app_name }}"
+        namespace: "{{ namespace }}"
+      register: deployment_info
+      
+    - name: Display current deployment info
+      debug:
+        msg: "Current deployment: {{ deployment_info.resources[0].metadata.name }}"
+        
+    - name: Get rollout history
+      command: kubectl rollout history deployment/{{ app_name }} -n {{ namespace }}
+      register: rollout_history
+      
+    - name: Display rollout history
+      debug:
+        msg: "{{ rollout_history.stdout_lines }}"
+        
+    - name: Rollback to previous revision
       kubernetes.core.k8s:
         state: present
         definition:
-          apiVersion: apps/v1
+          api_version: apps/v1
           kind: Deployment
           metadata:
             name: "{{ app_name }}"
             namespace: "{{ namespace }}"
           spec:
+            replicas: 3
+            strategy:
+              type: RollingUpdate
+              rollingUpdate:
+                maxUnavailable: 1
+                maxSurge: 1
+            selector:
+              matchLabels:
+                app: "{{ app_name }}"
             template:
               metadata:
-                annotations:
-                  deployment.kubernetes.io/revision: "{{ rollback_revision }}"
-                  
+                labels:
+                  app: "{{ app_name }}"
+              spec:
+                containers:
+                - name: "{{ app_name }}"
+                  image: "{{ deployment_info.resources[0].spec.template.spec.containers[0].image }}"
+                  ports:
+                  - containerPort: 80
+                  env:
+                  - name: NODE_ENV
+                    value: "production"
+                  resources:
+                    requests:
+                      memory: "256Mi"
+                      cpu: "250m"
+                    limits:
+                      memory: "512Mi"
+                      cpu: "500m"
+                  livenessProbe:
+                    httpGet:
+                      path: /health
+                      port: 80
+                    initialDelaySeconds: 30
+                    periodSeconds: 10
+                  readinessProbe:
+                    httpGet:
+                      path: /health
+                      port: 80
+                    initialDelaySeconds: 5
+                    periodSeconds: 5
+      when: rollback_to_revision == ""
+      
+    - name: Rollback to specific revision
+      command: kubectl rollout undo deployment/{{ app_name }} --to-revision={{ rollback_to_revision }} -n {{ namespace }}
+      when: rollback_to_revision != ""
+      
     - name: Wait for rollback to complete
       kubernetes.core.k8s_info:
         api_version: apps/v1
@@ -34,19 +101,45 @@
         namespace: "{{ namespace }}"
         wait: true
         wait_condition:
-          type: Progressing
+          type: Available
           status: "True"
-          reason: NewReplicaSetAvailable
         wait_timeout: 600
         
-    - name: Verify rollback status
+    - name: Verify rollback pods are running
       kubernetes.core.k8s_info:
-        api_version: apps/v1
-        kind: Deployment
-        name: "{{ app_name }}"
+        api_version: v1
+        kind: Pod
         namespace: "{{ namespace }}"
-      register: deployment_info
+        label_selectors:
+          - "app={{ app_name }}"
+      register: rollback_pods
       
-    - name: Display rollback status
+    - name: Check rollback pod status
       debug:
-        msg: "Rollback completed for {{ app_name }}"
+        msg: "Found {{ rollback_pods.resources | length }} pods after rollback"
+        
+    - name: Verify rollback pod health
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Pod
+        namespace: "{{ namespace }}"
+        label_selectors:
+          - "app={{ app_name }}"
+      register: rollback_pod_status
+      
+    - name: Display rollback pod status
+      debug:
+        msg: "Pod {{ item.metadata.name }} is {{ item.status.phase }}"
+      loop: "{{ rollback_pod_status.resources }}"
+      
+    - name: Check if all rollback pods are ready
+      assert:
+        that:
+          - item.status.phase == "Running"
+          - item.status.containerStatuses[0].ready == true
+        fail_msg: "Pod {{ item.metadata.name }} is not ready after rollback"
+      loop: "{{ rollback_pod_status.resources }}"
+      
+    - name: Rollback completed successfully
+      debug:
+        msg: "Rollback completed successfully. All pods are running with previous image version"

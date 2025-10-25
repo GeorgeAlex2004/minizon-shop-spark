@@ -1,5 +1,5 @@
 ---
-# Ansible playbook for rolling updates
+# Ansible playbook for rolling update of Minizon Frontend
 - name: Rolling Update Minizon Frontend
   hosts: localhost
   connection: local
@@ -10,8 +10,28 @@
     namespace: minizon
     image_tag: "{{ lookup('env', 'BUILD_NUMBER') | default('latest') }}"
     docker_registry: "{{ lookup('env', 'DOCKER_REGISTRY') | default('your-registry.com') }}"
+    replicas: 3
+    max_unavailable: 1
+    max_surge: 1
     
   tasks:
+    - name: Check if kubectl is available
+      command: kubectl version --client
+      register: kubectl_check
+      failed_when: kubectl_check.rc != 0
+      
+    - name: Get current deployment status
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: Deployment
+        name: "{{ app_name }}"
+        namespace: "{{ namespace }}"
+      register: current_deployment
+      
+    - name: Display current deployment info
+      debug:
+        msg: "Current deployment has {{ current_deployment.resources[0].spec.replicas }} replicas"
+        
     - name: Update deployment image
       kubernetes.core.k8s:
         state: present
@@ -22,13 +42,50 @@
             name: "{{ app_name }}"
             namespace: "{{ namespace }}"
           spec:
+            replicas: "{{ replicas }}"
+            strategy:
+              type: RollingUpdate
+              rollingUpdate:
+                maxUnavailable: "{{ max_unavailable }}"
+                maxSurge: "{{ max_surge }}"
+            selector:
+              matchLabels:
+                app: "{{ app_name }}"
             template:
+              metadata:
+                labels:
+                  app: "{{ app_name }}"
+                  version: "{{ image_tag }}"
               spec:
                 containers:
                 - name: "{{ app_name }}"
                   image: "{{ docker_registry }}/{{ app_name }}:{{ image_tag }}"
-                  
-    - name: Wait for rollout to complete
+                  ports:
+                  - containerPort: 80
+                  env:
+                  - name: NODE_ENV
+                    value: "production"
+                  resources:
+                    requests:
+                      memory: "256Mi"
+                      cpu: "250m"
+                    limits:
+                      memory: "512Mi"
+                      cpu: "500m"
+                  livenessProbe:
+                    httpGet:
+                      path: /health
+                      port: 80
+                    initialDelaySeconds: 30
+                    periodSeconds: 10
+                  readinessProbe:
+                    httpGet:
+                      path: /health
+                      port: 80
+                    initialDelaySeconds: 5
+                    periodSeconds: 5
+                    
+    - name: Wait for rolling update to complete
       kubernetes.core.k8s_info:
         api_version: apps/v1
         kind: Deployment
@@ -36,19 +93,45 @@
         namespace: "{{ namespace }}"
         wait: true
         wait_condition:
-          type: Progressing
+          type: Available
           status: "True"
-          reason: NewReplicaSetAvailable
         wait_timeout: 600
         
-    - name: Verify deployment status
+    - name: Verify all pods are running
       kubernetes.core.k8s_info:
-        api_version: apps/v1
-        kind: Deployment
-        name: "{{ app_name }}"
+        api_version: v1
+        kind: Pod
         namespace: "{{ namespace }}"
-      register: deployment_info
+        label_selectors:
+          - "app={{ app_name }}"
+      register: pods
       
-    - name: Display deployment status
+    - name: Check pod status
       debug:
-        msg: "Deployment {{ app_name }} is {{ deployment_info.resources[0].status.conditions[0].status }}"
+        msg: "Found {{ pods.resources | length }} pods"
+        
+    - name: Verify pod health
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Pod
+        namespace: "{{ namespace }}"
+        label_selectors:
+          - "app={{ app_name }}"
+      register: pod_status
+      
+    - name: Display pod status
+      debug:
+        msg: "Pod {{ item.metadata.name }} is {{ item.status.phase }}"
+      loop: "{{ pod_status.resources }}"
+      
+    - name: Check if all pods are ready
+      assert:
+        that:
+          - item.status.phase == "Running"
+          - item.status.containerStatuses[0].ready == true
+        fail_msg: "Pod {{ item.metadata.name }} is not ready"
+      loop: "{{ pod_status.resources }}"
+      
+    - name: Rolling update completed successfully
+      debug:
+        msg: "Rolling update completed successfully. All {{ replicas }} pods are running with image {{ docker_registry }}/{{ app_name }}:{{ image_tag }}"
