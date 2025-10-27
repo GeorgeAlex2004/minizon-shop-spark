@@ -4,7 +4,7 @@ pipeline {
     environment {
         DOCKER_IMAGE = 'minizon-shop-spark'
         DOCKER_TAG = "${BUILD_NUMBER}"
-        EC2_HOST = '3.27.83.16'
+        EC2_HOST = '3.26.146.192'
         EC2_USER = 'ec2-user'
         KEY_PATH = '/var/lib/jenkins/.ssh/project1.pem'
     }
@@ -13,7 +13,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 echo '📥 Checking out code from Git repository...'
-                git branch: 'main', url: 'https://github.com/yourusername/minizon-shop-spark.git'
+                git branch: 'main', url: 'https://github.com/GeorgeAlex2004/minizon-shop-spark.git'
             }
         }
         
