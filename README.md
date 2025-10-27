@@ -1,294 +1,127 @@
-# Minizon E-commerce DevOps Pipeline
+# MiniZon Shop - E-commerce Platform
 
-This repository contains a complete DevOps pipeline for the Minizon e-commerce frontend application, built with React, TypeScript, and modern DevOps tools.
+A modern e-commerce platform built with React, TypeScript, and deployed using a complete DevOps stack.
 
-## 🏗️ Architecture Overview
+## 🚀 Tech Stack
 
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Development   │    │     Jenkins     │    │   Kubernetes    │
-│                 │    │                 │    │                 │
-│  React + TS     │───▶│  CI/CD Pipeline │───▶│   Production    │
-│  Vite + Tailwind│    │                 │    │   Deployment    │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                                │
-                                ▼
-                       ┌─────────────────┐
-                       │   AWS Cloud     │
-                       │                 │
-                       │  EKS + ECR +    │
-                       │  Terraform     │
-                       └─────────────────┘
-```
+- **Frontend**: React + TypeScript + Vite
+- **Containerization**: Docker
+- **Web Server**: Nginx
+- **Cloud**: AWS EC2
+- **CI/CD**: Jenkins
+- **Monitoring**: Prometheus + Grafana
+- **Infrastructure**: Terraform (planned)
 
-## 📁 Project Structure
+## 📦 Features
 
-```
-minizon-shop-spark/
-├── src/                    # React application source code
-├── docker/                 # Docker configuration
-│   ├── Dockerfile         # Multi-stage Docker build
-│   ├── nginx.conf         # Nginx configuration
-│   ├── docker-compose.yml # Local development
-│   └── docker-compose.prod.yml # Production setup
-├── k8s/                   # Kubernetes manifests
-│   ├── deployment.yaml    # Application deployment
-│   ├── service.yaml       # Service configuration
-│   ├── ingress.yaml       # Ingress and TLS
-│   └── hpa.yaml          # Horizontal Pod Autoscaler
-├── jenkins/               # Jenkins CI/CD
-│   ├── Jenkinsfile       # Pipeline definition
-│   └── README.md         # Jenkins setup guide
-├── terraform/            # Infrastructure as Code
-│   ├── main.tf          # Main configuration
-│   ├── eks.tf           # EKS cluster setup
-│   ├── vpc.tf           # VPC and networking
-│   ├── ecr.tf           # Container registry
-│   └── outputs.tf       # Terraform outputs
-└── ansible/              # Configuration management
-    ├── deploy.yml        # Main deployment
-    ├── rolling-update.yml # Rolling updates
-    ├── rollback.yml      # Rollback operations
-    ├── inventory.yml     # Ansible inventory
-    └── README.md         # Ansible guide
-```
+- 🛍️ Product catalog with search and filters
+- 🛒 Shopping cart and checkout
+- ❤️ Wishlist functionality
+- 👤 User authentication
+- 📝 Product reviews
+- 📱 Responsive design
+- 🔍 Search functionality
 
-## 🚀 Quick Start
+## 🏗️ DevOps Setup
+
+### CI/CD Pipeline (Jenkins)
+- Automated build and deployment
+- Docker image creation
+- EC2 deployment
+
+### Monitoring (Prometheus + Grafana)
+- Metrics collection
+- Application monitoring
+- Container metrics (cAdvisor)
+- System metrics (Node Exporter)
+
+### Deployment
+- AWS EC2 instance (t3.small)
+- Docker Compose
+- Nginx reverse proxy
+- Health checks
+
+## 🛠️ Quick Start
 
 ### Prerequisites
+- Node.js 18+
 - Docker & Docker Compose
-- kubectl
-- Terraform
-- Ansible
-- Jenkins (for CI/CD)
-- AWS CLI
+- AWS Account
+- Jenkins
 
 ### Local Development
-```bash
-# Clone the repository
-git clone <repository-url>
-cd minizon-shop-spark
 
+```bash
 # Install dependencies
 npm install
 
-# Start development server
+# Run development server
 npm run dev
 
-# Or use Docker
-docker-compose -f docker/docker-compose.yml up
+# Build for production
+npm run build
 ```
-
-### 🚀 Automated Deployment
-
-#### Option 1: Automated Script (Recommended)
-```bash
-# Linux/macOS
-chmod +x deploy.sh
-./deploy.sh
-
-# Windows PowerShell
-.\deploy.ps1 -AWSAccountId "your-account-id" -GitHubRepo "https://github.com/yourusername/minizon-shop-spark.git"
-```
-
-#### Option 2: Manual Step-by-Step Deployment
-
-##### 1. Infrastructure Setup (Terraform)
-```bash
-cd terraform
-terraform init
-terraform plan
-terraform apply
-```
-
-##### 2. Build and Push Docker Image
-```bash
-# Build image
-docker build -f docker/Dockerfile -t minizon-frontend:latest .
-
-# Tag for registry
-docker tag minizon-frontend:latest your-registry.com/minizon-frontend:latest
-
-# Push to registry
-docker push your-registry.com/minizon-frontend:latest
-```
-
-##### 3. Deploy to Kubernetes
-```bash
-# Apply manifests
-kubectl apply -f k8s/
-
-# Or use Ansible
-ansible-playbook -i ansible/inventory.yml ansible/deploy.yml
-```
-
-### 📖 Detailed Deployment Guide
-For comprehensive deployment instructions, see:
-- [Complete Deployment Guide](DEPLOYMENT.md)
-- [Quick Start Guide](QUICK_START.md)
-
-## 🛠️ DevOps Tools Configuration
 
 ### Docker
-- **Multi-stage build** for optimized production images
-- **Nginx** for serving static files
-- **Health checks** for container monitoring
-- **Security headers** and optimizations
 
-### Kubernetes
-- **Deployment** with rolling updates
-- **Service** for internal communication
-- **Ingress** with TLS termination
-- **HPA** for automatic scaling
-- **Resource limits** and requests
-
-### Jenkins
-- **Pipeline as Code** with Jenkinsfile
-- **Multi-environment** deployment (staging/production)
-- **Security scanning** with Trivy
-- **Slack notifications** for deployment status
-- **Code coverage** reporting
-
-### Terraform
-- **EKS cluster** with managed node groups
-- **VPC** with public/private subnets
-- **ECR** repository for container images
-- **IAM roles** and policies
-- **CloudWatch** logging
-
-### Ansible
-- **Deployment automation** for Kubernetes
-- **Rolling updates** with zero downtime
-- **Rollback capabilities** for quick recovery
-- **Environment-specific** configurations
-
-## 🔧 Configuration
-
-### Environment Variables
 ```bash
-# Docker Registry
-DOCKER_REGISTRY=your-registry.com
+# Build image
+docker build -t minizon-shop .
 
-# Kubernetes
-KUBECONFIG=/path/to/kubeconfig
-
-# Domain
-DOMAIN_NAME=minizon.example.com
-
-# Build
-BUILD_NUMBER=123
+# Run container
+docker-compose up -d
 ```
 
-### Jenkins Credentials
-- `kubeconfig`: Kubernetes configuration
-- `docker-registry-credentials`: Docker registry access
-- `slack-token`: Slack webhook for notifications
+### Deployment
 
-## 📊 Monitoring & Observability
+See `DEPLOYMENT.md` for complete deployment instructions.
 
-### Health Checks
-- **Liveness probe**: `/health` endpoint
-- **Readiness probe**: Application startup check
-- **Resource monitoring**: CPU and memory usage
+## 📊 Access URLs
 
-### Logging
-- **Structured logging** with JSON format
-- **CloudWatch** integration for centralized logs
-- **Log retention** policies
+- **Application**: http://3.26.146.192
+- **Jenkins**: http://3.26.146.192:8081
+- **Prometheus**: http://3.26.146.192:9090
+- **Grafana**: http://3.26.146.192:3001
+- **Health Check**: http://3.26.146.192/health
 
-### Metrics
-- **Prometheus** metrics collection
-- **Grafana** dashboards
-- **Alerting** rules for critical metrics
+## 📂 Project Structure
 
-## 🔒 Security
+```
+minizon-shop-spark/
+├── src/
+│   ├── components/     # React components
+│   ├── pages/          # Page components
+│   ├── contexts/       # Context providers
+│   ├── data/           # Mock data
+│   └── types/          # TypeScript types
+├── docker/             # Docker configs
+├── monitoring/         # Prometheus & Grafana
+├── ansible/            # Configuration management
+├── k8s/                # Kubernetes configs
+└── terraform/          # Infrastructure as Code
+```
 
-### Container Security
-- **Non-root user** execution
-- **Minimal base images** (Alpine Linux)
-- **Security scanning** with Trivy
-- **Vulnerability management**
+## 🧪 Testing
 
-### Network Security
-- **Private subnets** for application pods
-- **Security groups** with minimal access
-- **TLS encryption** for all communications
-- **WAF** protection (optional)
+```bash
+# Run tests
+npm test
 
-### Access Control
-- **IAM roles** with least privilege
-- **RBAC** for Kubernetes resources
-- **Secret management** with AWS Secrets Manager
+# Linting
+npm run lint
+```
 
-## 🚦 CI/CD Pipeline
+## 📝 License
 
-### Pipeline Stages
-1. **Checkout**: Source code retrieval
-2. **Dependencies**: npm install
-3. **Lint**: Code quality checks
-4. **Build**: Production build
-5. **Test**: Unit tests with coverage
-6. **Docker**: Image build and push
-7. **Security**: Vulnerability scanning
-8. **Deploy**: Environment-specific deployment
+MIT
 
-### Branch Strategy
-- `main`: Production deployments
-- `develop`: Staging deployments
-- `feature/*`: Development branches
+## 👤 Author
 
-## 📈 Scaling
+George Alex - GeorgeAlex2004
 
-### Horizontal Pod Autoscaler (HPA)
-- **CPU-based scaling**: 70% threshold
-- **Memory-based scaling**: 80% threshold
-- **Min replicas**: 2
-- **Max replicas**: 10
+## 🙏 Acknowledgments
 
-### Cluster Autoscaler
-- **Node group scaling**: Based on pod scheduling
-- **Cost optimization**: Spot instances for non-critical workloads
-- **Multi-AZ deployment**: High availability
-
-## 🔄 Backup & Recovery
-
-### Data Backup
-- **ETCD backup**: Kubernetes cluster state
-- **Application data**: Persistent volumes
-- **Configuration**: Git-based version control
-
-### Disaster Recovery
-- **Multi-region deployment**: Cross-region replication
-- **Automated failover**: Route53 health checks
-- **Recovery procedures**: Documented runbooks
-
-## 📚 Documentation
-
-- [Docker Setup](docker/README.md)
-- [Kubernetes Manifests](k8s/README.md)
-- [Jenkins Pipeline](jenkins/README.md)
-- [Terraform Infrastructure](terraform/README.md)
-- [Ansible Playbooks](ansible/README.md)
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🆘 Support
-
-For support and questions:
-- Create an issue in the repository
-- Contact the DevOps team
-- Check the documentation
-
----
-
-**Built with ❤️ using modern DevOps practices**
+- React team
+- AWS
+- Jenkins community
+- Prometheus & Grafana teams
