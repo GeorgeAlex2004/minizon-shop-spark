@@ -275,7 +275,7 @@ function Send-DockerImage {
         # Upload Docker image using SCP (requires OpenSSH or similar)
         Write-Info "Please upload the Docker image manually:"
         Write-Host "scp -i ${KeyName}.pem -o StrictHostKeyChecking=no ${ProjectName}.tar.gz ec2-user@${PublicIp}:/opt/minizon/"
-        Write-Host "ssh -i ${KeyName}.pem -o StrictHostKeyChecking=no ec2-user@${PublicIp} 'cd /opt/minizon && docker load < ${ProjectName}.tar.gz && docker-compose down && docker-compose up -d'"
+        Write-Host "ssh -i ${KeyName}.pem -o StrictHostKeyChecking=no ec2-user@${PublicIp} 'cd /opt/minizon; docker load < ${ProjectName}.tar.gz; docker-compose down; docker-compose up -d'"
         
         Write-Success "Manual upload instructions provided"
     }
@@ -330,8 +330,8 @@ function Start-EC2Deployment {
         Write-Host ""
         Write-Host "🔧 Management commands:"
         Write-Host "SSH to instance: ssh -i ${KeyName}.pem ec2-user@$PublicIp"
-        Write-Host "View logs: ssh -i ${KeyName}.pem ec2-user@$PublicIp 'cd /opt/minizon && docker-compose logs -f'"
-        Write-Host "Restart app: ssh -i ${KeyName}.pem ec2-user@$PublicIp 'cd /opt/minizon && docker-compose restart'"
+        Write-Host "View logs: ssh -i ${KeyName}.pem ec2-user@$PublicIp `'cd /opt/minizon; docker-compose logs -f`'"
+        Write-Host "Restart app: ssh -i ${KeyName}.pem ec2-user@$PublicIp `'cd /opt/minizon; docker-compose restart`'"
     }
     catch {
         Write-Error "Deployment failed: $($_.Exception.Message)"
