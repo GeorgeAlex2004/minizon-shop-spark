@@ -17,9 +17,23 @@ pipeline {
             }
         }
         
-        stage('Build') {
+        stage('Install Dependencies') {
             steps {
-                echo '🔨 Building Docker image...'
+                echo '📦 Installing dependencies...'
+                sh 'npm install'
+            }
+        }
+        
+        stage('Build Application') {
+            steps {
+                echo '🔨 Building application...'
+                sh 'npm run build'
+            }
+        }
+        
+        stage('Docker Build') {
+            steps {
+                echo '🐳 Building Docker image...'
                 sh 'docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .'
                 sh 'docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest'
             }
